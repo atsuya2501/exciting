@@ -26,8 +26,16 @@ git clone https://github.com/atsuya2501/exciting.git
 
 `index.html` をブラウザで開くだけです(ダブルクリックでOK)。
 
-GitHub Pages を有効にすれば、スマホからも URL でアクセスできます:
-リポジトリの Settings → Pages → Branch を選んで保存するだけです。
+## スマホにアプリとしてインストール(PWA)
+
+このアプリは PWA 対応です。HTTPS の URL で開けばホーム画面に「アプリ」としてインストールでき、オフラインでも動きます。
+
+1. **GitHub Pages を有効にする**: リポジトリの Settings → Pages → 「Deploy from a branch」でブランチを選んで保存
+2. 発行された URL(例: `https://atsuya2501.github.io/exciting/`)をスマホの Chrome で開く
+3. メニュー → **「ホーム画面に追加」または「アプリをインストール」** をタップ
+
+インストール後はランチャーから普通のアプリと同じように起動できます。
+Service Worker がファイルをキャッシュするため、2回目以降はオフラインでも開けます。
 
 ## 注意
 
