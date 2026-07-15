@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#4f6df5">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -195,6 +195,29 @@
   .memo .saved { font-size: .75rem; color: var(--text-sub); margin-top: 6px; text-align: right; min-height: 1em; }
 
   footer { text-align: center; color: var(--text-sub); font-size: .8rem; margin-top: 28px; }
+  .data-btns { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+  .data-btns button {
+    background: none; border: 1px solid var(--border); color: var(--text-sub);
+    border-radius: 8px; padding: 6px 14px; font-size: .8rem; cursor: pointer;
+  }
+  .data-btns button:hover { color: var(--text); border-color: var(--text-sub); }
+  .streak { font-size: .75rem; color: var(--text-sub); white-space: nowrap; }
+
+  /* ---- mobile ---- */
+  @media (max-width: 480px) {
+    body {
+      padding: 14px 10px calc(28px + env(safe-area-inset-bottom));
+      padding-top: calc(14px + env(safe-area-inset-top));
+    }
+    header { margin-bottom: 16px; }
+    .date-block h1 { font-size: 1.15rem; }
+    .clock { font-size: 1.5rem; }
+    .theme-btn { padding: 6px 12px; font-size: .8rem; }
+    .card { padding: 16px 14px; border-radius: 12px; }
+    .pomo-ring { width: 170px; height: 170px; }
+    .pomo-ring svg { width: 170px; height: 170px; }
+    .del-btn { visibility: visible; } /* タッチ端末ではホバーがないため常時表示 */
+  }
 </style>
 </head>
 <body>
@@ -268,7 +291,14 @@
     </section>
   </div>
 
-  <footer>データはこのブラウザの localStorage にのみ保存されます</footer>
+  <footer>
+    <div class="data-btns">
+      <button id="exportBtn">⬇ バックアップ</button>
+      <button id="importBtn">⬆ 復元</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    データはこのブラウザの localStorage にのみ保存されます
+  </footer>
 </div>
 
 <script>
@@ -402,14 +432,33 @@ function pomoStop() {
   $("pomoStart").textContent = pomoRemaining === POMO_PRESETS[pomoMode] ? "スタート" : "再開";
   renderPomo();
 }
+function pomoNotify(message) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  // Android ChromeではページからのNotification生成が不可のためSW経由を優先
+  const opts = { body: message, icon: "icon-192.png", tag: "pomodoro" };
+  if (navigator.serviceWorker) {
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (reg) reg.showNotification("デイリーダッシュボード", opts);
+      else try { new Notification("デイリーダッシュボード", opts); } catch { /* noop */ }
+    });
+  } else {
+    try { new Notification("デイリーダッシュボード", opts); } catch { /* noop */ }
+  }
+}
 function pomoFinish() {
   pomoBeep();
+  let next;
   if (pomoMode === "work") {
     const s = pomoStats();
     s.done += 1;
     store.set("pomoStats", s);
+    next = s.done % 4 === 0 ? "long" : "short"; // 4セットごとに長休憩
+    pomoNotify(next === "long" ? "4セット完了!長めに休憩しましょう 🍅" : "作業終了!5分休憩しましょう 🍅");
+  } else {
+    next = "work";
+    pomoNotify("休憩終了!次の作業を始めましょう 💪");
   }
-  setPomoMode(pomoMode === "work" ? "short" : "work");
+  setPomoMode(next);
   $("pomoStart").textContent = "スタート";
 }
 function setPomoMode(mode) {
@@ -429,6 +478,9 @@ $("pomoMode").addEventListener("click", (e) => {
 });
 $("pomoStart").addEventListener("click", () => {
   if (pomoTimer) { pomoStop(); return; }
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission(); // 初回スタート時に通知許可を確認
+  }
   pomoEndsAt = Date.now() + pomoRemaining * 1000;
   $("pomoStart").textContent = "一時停止";
   pomoTimer = setInterval(() => {
@@ -461,6 +513,17 @@ function dateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 function saveHabits() { store.set("habits", habits); renderHabits(); }
+function habitStreak(h) {
+  // 今日(未記録なら昨日)から遡って連続達成日数を数える
+  const d = new Date();
+  if (!h.log[dateKey(d)]) d.setDate(d.getDate() - 1);
+  let streak = 0;
+  while (h.log[dateKey(d)]) {
+    streak += 1;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
 function renderHabits() {
   const dates = weekDates();
   const today = todayKey();
@@ -483,6 +546,14 @@ function renderHabits() {
     nameTd.className = "habit-name";
     nameTd.textContent = h.name;
     nameTd.title = h.name;
+    const streak = habitStreak(h);
+    if (streak >= 2) {
+      const s = document.createElement("span");
+      s.className = "streak";
+      s.textContent = ` 🔥${streak}`;
+      s.title = `${streak}日連続`;
+      nameTd.appendChild(s);
+    }
     tr.appendChild(nameTd);
     dates.forEach(d => {
       const key = dateKey(d);
@@ -539,6 +610,34 @@ memoArea.addEventListener("input", () => {
     $("memoSaved").textContent =
       `保存済み ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
   }, 400);
+});
+
+/* ---------- backup: export / import ---------- */
+const DATA_KEYS = ["todos", "habits", "memo", "pomoStats", "theme"];
+$("exportBtn").addEventListener("click", () => {
+  const data = { app: "daily-dashboard", version: 1, exportedAt: new Date().toISOString() };
+  DATA_KEYS.forEach((k) => { data[k] = store.get(k, null); });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `daily-dashboard-backup-${todayKey()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+$("importBtn").addEventListener("click", () => $("importFile").click());
+$("importFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.app !== "daily-dashboard") throw new Error("形式が違います");
+    if (!confirm("バックアップから復元しますか?現在のデータは上書きされます。")) return;
+    DATA_KEYS.forEach((k) => { if (data[k] !== null && data[k] !== undefined) store.set(k, data[k]); });
+    location.reload();
+  } catch {
+    alert("復元できませんでした。このアプリの「バックアップ」で保存したJSONファイルを選んでください。");
+  }
 });
 
 /* ---------- PWA: Service Worker 登録 ---------- */

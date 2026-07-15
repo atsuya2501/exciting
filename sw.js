@@ -1,6 +1,6 @@
 /* デイリーダッシュボード Service Worker
    キャッシュ優先で即表示しつつ、裏でネットワークから更新を取得する */
-const CACHE = "daily-dashboard-v1";
+const CACHE = "daily-dashboard-v2";
 const ASSETS = [
   "./",
   "./index.html",
