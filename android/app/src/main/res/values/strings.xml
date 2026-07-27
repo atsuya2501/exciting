@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">デイリーダッシュボード</string>
+    <string name="notification_channel_name">ポモドーロ</string>
+    <string name="notification_channel_description">ポモドーロの終了を通知します</string>
+</resources>

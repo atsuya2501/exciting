@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" id="themeColor" content="#4f6df5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ダッシュボード">
+<title>デイリーダッシュボード</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1c2333;
+    --text-sub: #6b7280;
+    --accent: #4f6df5;
+    --accent-soft: #e8ecfe;
+    --danger: #e5484d;
+    --ok: #30a46c;
+    --border: #e4e7ec;
+    --shadow: 0 1px 3px rgba(16, 24, 40, .08), 0 1px 2px rgba(16, 24, 40, .04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12141a;
+      --card: #1b1e27;
+      --text: #e6e8ee;
+      --text-sub: #9aa1b0;
+      --accent: #7b93ff;
+      --accent-soft: #262c45;
+      --danger: #ff6369;
+      --ok: #3dd68c;
+      --border: #2a2e3a;
+      --shadow: 0 1px 3px rgba(0, 0, 0, .4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12141a;
+    --card: #1b1e27;
+    --text: #e6e8ee;
+    --text-sub: #9aa1b0;
+    --accent: #7b93ff;
+    --accent-soft: #262c45;
+    --danger: #ff6369;
+    --ok: #3dd68c;
+    --border: #2a2e3a;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .4);
+  }
+  :root[data-theme="light"] {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1c2333;
+    --text-sub: #6b7280;
+    --accent: #4f6df5;
+    --accent-soft: #e8ecfe;
+    --danger: #e5484d;
+    --ok: #30a46c;
+    --border: #e4e7ec;
+    --shadow: 0 1px 3px rgba(16, 24, 40, .08), 0 1px 2px rgba(16, 24, 40, .04);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+    transition: background .25s, color .25s;
+  }
+  .container { max-width: 1080px; margin: 0 auto; }
+
+  /* ---- header ---- */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; margin-bottom: 24px;
+  }
+  .date-block h1 { font-size: 1.5rem; font-weight: 700; }
+  .date-block p { color: var(--text-sub); font-size: .9rem; margin-top: 2px; }
+  .clock { font-variant-numeric: tabular-nums; font-size: 2rem; font-weight: 600; }
+  .theme-btn {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 999px; padding: 8px 16px; cursor: pointer; font-size: .9rem;
+    box-shadow: var(--shadow);
+  }
+
+  /* ---- layout ---- */
+  .grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    align-items: start;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; box-shadow: var(--shadow);
+  }
+  .card h2 {
+    font-size: 1.05rem; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2 .count { font-size: .8rem; color: var(--text-sub); font-weight: 400; }
+
+  /* ---- todo ---- */
+  .todo-form { display: flex; gap: 8px; margin-bottom: 12px; }
+  .todo-form input {
+    flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text); font-size: .95rem;
+  }
+  .todo-form button, .habit-form button {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 0 16px; cursor: pointer; font-size: .95rem;
+  }
+  button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    outline-offset: 2px;
+  }
+  ul.todo-list { list-style: none; }
+  .todo-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .todo-item:last-child { border-bottom: none; }
+  .todo-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  .todo-item span { flex: 1; word-break: break-word; }
+  .todo-item.done span { text-decoration: line-through; color: var(--text-sub); }
+  .del-btn {
+    background: none; border: none; color: var(--text-sub); cursor: pointer;
+    font-size: 1rem; padding: 2px 6px; border-radius: 6px; visibility: hidden;
+  }
+  .todo-item:hover .del-btn, .habit-row:hover .del-btn { visibility: visible; }
+  .del-btn:hover { color: var(--danger); background: var(--accent-soft); }
+  .empty { color: var(--text-sub); font-size: .9rem; text-align: center; padding: 16px 0; }
+  .todo-clear {
+    margin-top: 10px; background: none; border: none; color: var(--text-sub);
+    font-size: .8rem; cursor: pointer; text-decoration: underline;
+  }
+
+  /* ---- pomodoro ---- */
+  .pomo { text-align: center; }
+  .pomo-mode { display: inline-flex; gap: 6px; background: var(--bg); padding: 4px; border-radius: 10px; margin-bottom: 14px; }
+  .pomo-mode button {
+    border: none; background: none; color: var(--text-sub); padding: 6px 14px;
+    border-radius: 8px; cursor: pointer; font-size: .85rem;
+  }
+  .pomo-mode button.active { background: var(--accent); color: #fff; }
+  .pomo-time {
+    font-size: 3.4rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    letter-spacing: 2px; margin: 6px 0 14px;
+  }
+  .pomo-ring { position: relative; width: 200px; height: 200px; margin: 0 auto 8px; }
+  .pomo-ring svg { transform: rotate(-90deg); }
+  .pomo-ring .track { stroke: var(--border); }
+  .pomo-ring .bar { stroke: var(--accent); transition: stroke-dashoffset .5s linear; }
+  .pomo-ring .inner {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .pomo-ring .inner .t { font-size: 2.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .pomo-ring .inner .m { font-size: .8rem; color: var(--text-sub); }
+  .pomo-btns { display: flex; gap: 8px; justify-content: center; }
+  .pomo-btns button {
+    padding: 10px 22px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); cursor: pointer; font-size: .95rem;
+  }
+  .pomo-btns .primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pomo-count { margin-top: 12px; font-size: .85rem; color: var(--text-sub); }
+  .focus-categories { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin:0 0 12px; }
+  .focus-category { padding:9px 4px; border:1px solid var(--border); border-radius:9px; background:var(--bg); color:var(--text); cursor:pointer; font-size:.9rem; }
+  .focus-category.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .focus-history { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); text-align: left; }
+  .focus-history-title { color: var(--text-sub); font-size: .8rem; margin-bottom: 6px; }
+  .focus-history-row { display:flex; justify-content:space-between; gap:10px; padding:5px 2px; font-size:.86rem; }
+  .focus-history-row span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* ---- habits ---- */
+  .habit-form { display: flex; gap: 8px; margin-bottom: 14px; }
+  .habit-form input {
+    flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text); font-size: .95rem;
+  }
+  .habit-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .habit-table th { color: var(--text-sub); font-weight: 500; padding: 4px 2px; text-align: center; }
+  .habit-table th:first-child { text-align: left; }
+  .habit-table th.today { color: var(--accent); font-weight: 700; }
+  .habit-row td { padding: 6px 2px; border-top: 1px solid var(--border); }
+  .habit-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .habit-cell { text-align: center; }
+  .habit-dot {
+    width: 24px; height: 24px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); cursor: pointer; display: inline-block; vertical-align: middle;
+    transition: background .15s;
+  }
+  .habit-dot.on { background: var(--ok); border-color: var(--ok); }
+  .habit-dot:disabled { opacity: .35; cursor: default; }
+
+  /* ---- memo ---- */
+  .memo textarea {
+    width: 100%; min-height: 180px; resize: vertical;
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+    background: var(--bg); color: var(--text); font-size: .95rem; line-height: 1.6;
+    font-family: inherit;
+  }
+  .memo .saved { font-size: .75rem; color: var(--text-sub); margin-top: 6px; text-align: right; min-height: 1em; }
+  .memo-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+  .memo-actions button {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; cursor: pointer;
+  }
+
+  footer { text-align: center; color: var(--text-sub); font-size: .8rem; margin-top: 28px; }
+  .data-btns { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+  .data-btns button {
+    background: none; border: 1px solid var(--border); color: var(--text-sub);
+    border-radius: 8px; padding: 6px 14px; font-size: .8rem; cursor: pointer;
+  }
+  .data-btns button:hover { color: var(--text); border-color: var(--text-sub); }
+  .streak { font-size: .75rem; color: var(--text-sub); white-space: nowrap; }
+  .storage-status { min-height: 1.2em; color: var(--danger); margin-bottom: 6px; }
+  .habit-scroll { overflow-x: auto; }
+
+  /* ---- mobile ---- */
+  @media (max-width: 480px) {
+    body {
+      padding: 14px 10px calc(28px + env(safe-area-inset-bottom));
+      padding-top: calc(14px + env(safe-area-inset-top));
+    }
+    header { margin-bottom: 16px; }
+    .date-block h1 { font-size: 1.15rem; }
+    .clock { font-size: 1.5rem; }
+    .theme-btn { padding: 6px 12px; font-size: .8rem; }
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .card { min-width: 0; padding: 16px 14px; border-radius: 12px; }
+    .pomo-ring { width: 170px; height: 170px; }
+    .pomo-ring svg { width: 170px; height: 170px; }
+    .del-btn { visibility: visible; } /* タッチ端末ではホバーがないため常時表示 */
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="date-block">
+      <h1>デイリーダッシュボード</h1>
+      <p id="dateLabel"></p>
+    </div>
+    <div class="clock" id="clock">--:--</div>
+    <button class="theme-btn" id="themeBtn">🌙 ダーク</button>
+  </header>
+
+  <div class="grid">
+    <!-- TODO -->
+    <section class="card" hidden aria-hidden="true">
+      <h2>✅ 今日のタスク <span class="count" id="todoCount"></span></h2>
+      <form class="todo-form" id="todoForm">
+        <input type="text" id="todoInput" aria-label="今日のタスク" placeholder="タスクを追加..." maxlength="200" autocomplete="off">
+        <button type="submit">追加</button>
+      </form>
+      <ul class="todo-list" id="todoList"></ul>
+      <button class="todo-clear" id="todoClear" hidden>完了済みを削除</button>
+    </section>
+
+    <!-- Pomodoro -->
+    <section class="card pomo">
+      <h2 style="justify-content:center">🍅 ポモドーロ</h2>
+      <div class="pomo-mode" id="pomoMode" role="group" aria-label="タイマーの種類">
+        <button data-mode="work" class="active" aria-pressed="true">作業 25分</button>
+        <button data-mode="short" aria-pressed="false">休憩 5分</button>
+        <button data-mode="long" aria-pressed="false">長休憩 15分</button>
+      </div>
+      <div class="focus-categories" id="focusCategories" role="group" aria-label="集中するカテゴリ">
+        <button class="focus-category" data-focus="英語">英語</button>
+        <button class="focus-category" data-focus="数学">数学</button>
+        <button class="focus-category" data-focus="読書">読書</button>
+        <button class="focus-category" data-focus="その他">その他</button>
+      </div>
+      <div class="pomo-ring">
+        <svg width="200" height="200" viewBox="0 0 200 200">
+          <circle class="track" cx="100" cy="100" r="90" fill="none" stroke-width="8"/>
+          <circle class="bar" id="pomoBar" cx="100" cy="100" r="90" fill="none" stroke-width="8"
+                  stroke-linecap="round" stroke-dasharray="565.49" stroke-dashoffset="0"/>
+        </svg>
+        <div class="inner">
+          <div class="t" id="pomoTime">25:00</div>
+          <div class="m" id="pomoLabel">作業</div>
+        </div>
+      </div>
+      <div class="pomo-btns">
+        <button class="primary" id="pomoStart">スタート</button>
+        <button id="pomoReset">リセット</button>
+      </div>
+      <div class="pomo-count">今日の完了: <span id="pomoDone">0</span> 🍅</div>
+      <div class="focus-history" id="focusHistory"></div>
+    </section>
+
+    <!-- Habits -->
+    <section class="card" hidden aria-hidden="true">
+      <h2>📅 習慣トラッカー <span class="count">(今週)</span></h2>
+      <form class="habit-form" id="habitForm">
+        <input type="text" id="habitInput" aria-label="習慣名" placeholder="習慣を追加(例: 運動)" maxlength="50" autocomplete="off">
+        <button type="submit">追加</button>
+      </form>
+      <div class="habit-scroll">
+        <table class="habit-table">
+          <thead><tr id="habitHead"></tr></thead>
+          <tbody id="habitBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="habitEmpty" hidden>習慣を追加して毎日の記録をつけましょう</div>
+    </section>
+
+    <!-- Memo -->
+    <section class="card memo">
+      <h2>📝 クイックメモ</h2>
+      <textarea id="memoArea" aria-label="クイックメモ" placeholder="思いついたことをメモ(自動保存されます)"></textarea>
+      <div class="saved" id="memoSaved" role="status"></div>
+      <div class="memo-actions"><button id="captureBtn">📥 Capture Inboxへ送る</button></div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="storage-status" id="storageStatus" role="alert"></div>
+    <div class="data-btns">
+      <button id="exportBtn">⬇ バックアップ</button>
+      <button id="importBtn">⬆ 復元</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    データはこのブラウザの localStorage にのみ保存されます
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- utils ---------- */
+const $ = (id) => document.getElementById(id);
+const makeId = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const STORAGE_PREFIX = "atsuya.dashboard.";
+const LEGACY_KEYS = ["todos", "habits", "memo", "pomoStats", "theme", "pomoState", "pomoSessions"];
+function reportStorageError() {
+  const el = $("storageStatus");
+  if (el) el.textContent = "データを保存できません。ブラウザの空き容量・サイト設定を確認し、バックアップしてください。";
+}
+const store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem(STORAGE_PREFIX + key); return v === null ? fallback : JSON.parse(v); }
+    catch { return fallback; }
+  },
+  set(key, value) {
+    try { localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value)); return true; }
+    catch { reportStorageError(); return false; }
+  },
+  remove(key) {
+    try { localStorage.removeItem(STORAGE_PREFIX + key); return true; }
+    catch { reportStorageError(); return false; }
+  }
+};
+// 旧版の一般的なキーを一度だけ名前空間付きへ移す。他アプリとの衝突を防ぐ。
+try {
+  LEGACY_KEYS.forEach((key) => {
+    const oldValue = localStorage.getItem(key);
+    const newKey = STORAGE_PREFIX + key;
+    if (oldValue !== null && localStorage.getItem(newKey) === null) localStorage.setItem(newKey, oldValue);
+    if (oldValue !== null) localStorage.removeItem(key);
+  });
+} catch { reportStorageError(); }
+const todayKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/* ---------- clock & date ---------- */
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+function tickClock() {
+  const now = new Date();
+  $("clock").textContent =
+    `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  $("dateLabel").textContent =
+    `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 (${WEEKDAYS[now.getDay()]})`;
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+/* ---------- theme ---------- */
+function applyTheme(theme) {
+  if (!["light", "dark"].includes(theme)) theme = "light";
+  document.documentElement.dataset.theme = theme;
+  $("themeColor").content = theme === "dark" ? "#12141a" : "#4f6df5";
+  $("themeBtn").textContent = theme === "dark" ? "☀️ ライト" : "🌙 ダーク";
+  store.set("theme", theme);
+}
+applyTheme(store.get("theme",
+  matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+$("themeBtn").addEventListener("click", () =>
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+
+/* ---------- todo ---------- */
+function normalizeTodos(value) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((t) => {
+    if (!t || typeof t.text !== "string") return [];
+    return [{
+      id: typeof t.id === "string" ? t.id : makeId(),
+      text: t.text.slice(0, 200), done: Boolean(t.done),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(t.date) ? t.date : todayKey(),
+      createdAt: typeof t.createdAt === "string" ? t.createdAt : new Date().toISOString(),
+      completedAt: typeof t.completedAt === "string" ? t.completedAt : null
+    }];
+  });
+}
+let todos = normalizeTodos(store.get("todos", []));
+function rolloverTodos() {
+  const today = todayKey();
+  let changed = false;
+  todos.forEach((todo) => {
+    if (!todo.done && todo.date < today) { todo.date = today; changed = true; }
+  });
+  if (changed) store.set("todos", todos);
+}
+rolloverTodos();
+function saveTodos() { store.set("todos", todos); renderTodos(); }
+function renderTodos() {
+  const list = $("todoList");
+  list.innerHTML = "";
+  const todaysTodos = todos.filter((t) => t.date === todayKey());
+  if (todaysTodos.length === 0) {
+    list.innerHTML = '<li class="empty">タスクはありません 🎉</li>';
+  }
+  todaysTodos.forEach((t) => {
+    const li = document.createElement("li");
+    li.className = "todo-item" + (t.done ? " done" : "");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = t.done;
+    cb.setAttribute("aria-label", `${t.text}を完了`);
+    cb.addEventListener("change", () => {
+      t.done = cb.checked;
+      t.completedAt = t.done ? new Date().toISOString() : null;
+      saveTodos();
+    });
+    const span = document.createElement("span");
+    span.textContent = t.text;
+    const del = document.createElement("button");
+    del.className = "del-btn";
+    del.textContent = "✕";
+    del.title = "削除";
+    del.setAttribute("aria-label", `「${t.text}」を削除`);
+    del.addEventListener("click", () => { todos = todos.filter((item) => item.id !== t.id); saveTodos(); });
+    li.append(cb, span, del);
+    list.appendChild(li);
+  });
+  const doneCount = todaysTodos.filter(t => t.done).length;
+  $("todoCount").textContent = todaysTodos.length ? `${doneCount} / ${todaysTodos.length} 完了` : "";
+  $("todoClear").hidden = doneCount === 0;
+}
+$("todoForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = $("todoInput").value.trim();
+  if (!text) return;
+  todos.push({ id: makeId(), text, done: false, date: todayKey(), createdAt: new Date().toISOString(), completedAt: null });
+  $("todoInput").value = "";
+  saveTodos();
+});
+$("todoClear").addEventListener("click", () => {
+  const today = todayKey();
+  todos = todos.filter(t => t.date !== today || !t.done);
+  saveTodos();
+});
+renderTodos();
+
+/* ---------- pomodoro ---------- */
+const POMO_PRESETS = { work: 25 * 60, short: 5 * 60, long: 15 * 60 };
+const POMO_LABELS = { work: "作業", short: "休憩", long: "長休憩" };
+const CIRCUMFERENCE = 2 * Math.PI * 90;
+let pomoMode = "work";
+let pomoRemaining = POMO_PRESETS.work;
+let pomoTimer = null;
+let pomoEndsAt = null;
+let pomoStartedAt = null;
+const FOCUS_CATEGORIES = ["英語", "数学", "読書", "その他"];
+let pomoFocus = FOCUS_CATEGORIES.includes(store.get("pomoFocus", "")) ? store.get("pomoFocus", "") : "英語";
+
+function currentFocus() {
+  store.set("pomoFocus", pomoFocus);
+  return pomoFocus;
+}
+function renderFocusCategories() {
+  document.querySelectorAll(".focus-category").forEach((button) => {
+    const active = button.dataset.focus === pomoFocus;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+$("focusCategories").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-focus]");
+  if (!button || pomoTimer) return;
+  pomoFocus = button.dataset.focus;
+  currentFocus(); renderFocusCategories();
+});
+function localDateKey(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+function weekStartKey() {
+  const date = new Date();
+  const offset = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - offset); date.setHours(0,0,0,0);
+  return localDateKey(date);
+}
+function renderFocusHistory() {
+  const sessions = store.get("pomoSessions", []);
+  const safe = Array.isArray(sessions) ? sessions : [];
+  const todayCounts = new Map(FOCUS_CATEGORIES.map(name => [name, 0]));
+  const weekCounts = new Map(FOCUS_CATEGORIES.map(name => [name, 0]));
+  safe.forEach((session) => {
+    if (session.mode !== "work" || session.result !== "completed") return;
+    const raw = String(session.focus || "").trim();
+    const name = FOCUS_CATEGORIES.includes(raw) ? raw : "その他";
+    const day = localDateKey(session.endedAt);
+    if (day === todayKey()) todayCounts.set(name, todayCounts.get(name) + 1);
+    if (day >= weekStartKey() && day <= todayKey()) weekCounts.set(name, weekCounts.get(name) + 1);
+  });
+  const history = $("focusHistory");
+  history.innerHTML = '<div class="focus-history-title">今日 / 今週</div>';
+  FOCUS_CATEGORIES.forEach((name) => {
+    const todayCount = todayCounts.get(name), weekCount = weekCounts.get(name);
+    const row = document.createElement("div"); row.className = "focus-history-row";
+    const label = document.createElement("span"); label.textContent = name;
+    const value = document.createElement("strong"); value.textContent = `${todayCount} / ${weekCount} ポモ`;
+    row.append(label, value); history.appendChild(row);
+  });
+}
+renderFocusCategories();
+
+window.clearMathPomodoros = () => {
+  const sessions = store.get("pomoSessions", []);
+  const safe = Array.isArray(sessions) ? sessions : [];
+  const removedToday = safe.filter(s => s.mode === "work" && s.result === "completed" && s.focus === "数学" && localDateKey(s.endedAt) === todayKey()).length;
+  store.set("pomoSessions", safe.filter(s => !(s.mode === "work" && s.result === "completed" && s.focus === "数学")));
+  const stats = pomoStats();
+  stats.done = Math.max(0, stats.done - removedToday);
+  store.set("pomoStats", stats);
+  if (window.Android?.getTimerState) {
+    try { store.set("lastNativeCompletionId", Number(JSON.parse(Android.getTimerState()).completionId || 0)); } catch { /* noop */ }
+  }
+  renderPomo();
+  renderFocusHistory();
+};
+
+function importNativeCompletion(nativeState) {
+  const id = Number(nativeState?.completionId || 0);
+  if (!id || id === Number(store.get("lastNativeCompletionId", 0))) return;
+  store.set("lastNativeCompletionId", id);
+  if (nativeState.completedMode !== "work") return;
+  const sessions = store.get("pomoSessions", []);
+  const safe = Array.isArray(sessions) ? sessions : [];
+  const duplicate = safe.some(s => s.mode === "work" && s.result === "completed" && Math.abs(Date.parse(s.endedAt) - id) < 5000);
+  if (!duplicate) {
+    safe.push({ id: makeId(), mode: "work", startedAt: new Date(id - POMO_PRESETS.work * 1000).toISOString(), endedAt: new Date(id).toISOString(), plannedSeconds: POMO_PRESETS.work, result: "completed", focus: String(nativeState.completedFocus || "").slice(0, 100) });
+    store.set("pomoSessions", safe.slice(-1000));
+    const s = pomoStats(); s.done += 1; store.set("pomoStats", s);
+  }
+  renderFocusHistory();
+}
+
+function savePomoState(status, syncNative = true) {
+  store.set("pomoState", {
+    version: 1, mode: pomoMode, status, remaining: pomoRemaining,
+    endsAt: status === "running" ? pomoEndsAt : null,
+    startedAt: pomoStartedAt
+  });
+  if (window.Android && syncNative) {
+    if (status === "running" && pomoEndsAt) {
+      const message = pomoMode === "work"
+        ? "作業終了!休憩しましょう 🍅"
+        : "休憩終了!次の作業を始めましょう 💪";
+      const nextMode = pomoMode === "work"
+        ? ((pomoStats().done + 1) % 4 === 0 ? "long" : "short")
+        : "work";
+      Android.scheduleTimer(pomoEndsAt, pomoMode, nextMode, message, currentFocus());
+    } else {
+      Android.cancelTimer();
+    }
+  }
+}
+
+function pomoStats() {
+  const s = store.get("pomoStats", {});
+  return s && s.date === todayKey() && Number.isInteger(s.done) && s.done >= 0
+    ? s : { date: todayKey(), done: 0 };
+}
+function renderPomo() {
+  const m = Math.floor(pomoRemaining / 60);
+  const s = pomoRemaining % 60;
+  const text = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  $("pomoTime").textContent = text;
+  $("pomoLabel").textContent = POMO_LABELS[pomoMode];
+  const ratio = pomoRemaining / POMO_PRESETS[pomoMode];
+  $("pomoBar").style.strokeDashoffset = CIRCUMFERENCE * (1 - ratio);
+  $("pomoDone").textContent = pomoStats().done;
+  document.title = pomoTimer ? `${text} ${POMO_LABELS[pomoMode]} | デイリーダッシュボード` : "デイリーダッシュボード";
+}
+function pomoBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.25, 0.5].forEach((delay) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.2);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.22);
+    });
+  } catch { /* 音が出せない環境では無視 */ }
+}
+function pomoStop() {
+  clearInterval(pomoTimer);
+  pomoTimer = null;
+  pomoEndsAt = null;
+  savePomoState("paused");
+  $("pomoStart").textContent = pomoRemaining === POMO_PRESETS[pomoMode] ? "スタート" : "再開";
+  renderPomo();
+}
+function pomoNotify(message) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  // Android ChromeではページからのNotification生成が不可のためSW経由を優先
+  const opts = { body: message, icon: "icon-192.png", tag: "pomodoro" };
+  if (navigator.serviceWorker) {
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (reg) reg.showNotification("デイリーダッシュボード", opts);
+      else try { new Notification("デイリーダッシュボード", opts); } catch { /* noop */ }
+    });
+  } else {
+    try { new Notification("デイリーダッシュボード", opts); } catch { /* noop */ }
+  }
+}
+function pomoFinish() {
+  const finishedMode = pomoMode;
+  const finishedAt = new Date().toISOString();
+  const sessions = store.get("pomoSessions", []);
+  const safeSessions = Array.isArray(sessions) ? sessions : [];
+  safeSessions.push({
+    id: makeId(), mode: finishedMode,
+    startedAt: pomoStartedAt || finishedAt, endedAt: finishedAt,
+    plannedSeconds: POMO_PRESETS[finishedMode], result: "completed",
+    focus: finishedMode === "work" ? currentFocus() : ""
+  });
+  // localStorageを圧迫しないよう直近1000件を保持する。
+  store.set("pomoSessions", safeSessions.slice(-1000));
+  renderFocusHistory();
+  pomoBeep();
+  let next;
+  if (pomoMode === "work") {
+    const s = pomoStats();
+    s.done += 1;
+    store.set("pomoStats", s);
+    next = s.done % 4 === 0 ? "long" : "short"; // 4セットごとに長休憩
+    pomoNotify(next === "long" ? "4セット完了!長めに休憩しましょう 🍅" : "作業終了!5分休憩しましょう 🍅");
+  } else {
+    next = "work";
+    pomoNotify("休憩終了!次の作業を始めましょう 💪");
+  }
+  if (window.Android?.finishTimerNow) Android.finishTimerNow();
+  setPomoMode(next, true);
+  $("pomoStart").textContent = "スタート";
+}
+function setPomoMode(mode, preserveNativeNotification = false) {
+  if (!Object.hasOwn(POMO_PRESETS, mode)) mode = "work";
+  clearInterval(pomoTimer);
+  pomoTimer = null;
+  pomoEndsAt = null;
+  pomoStartedAt = null;
+  pomoMode = mode;
+  pomoRemaining = POMO_PRESETS[mode];
+  document.querySelectorAll("#pomoMode button").forEach(b =>
+    b.classList.toggle("active", b.dataset.mode === mode));
+  document.querySelectorAll("#pomoMode button").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
+  $("pomoStart").textContent = "スタート";
+  savePomoState("idle", !preserveNativeNotification);
+  renderPomo();
+}
+$("pomoMode").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-mode]");
+  if (btn) setPomoMode(btn.dataset.mode);
+});
+function startPomo() {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {}); // 初回スタート時に通知許可を確認
+  }
+  if (!pomoStartedAt) pomoStartedAt = new Date().toISOString();
+  pomoEndsAt = Date.now() + pomoRemaining * 1000;
+  $("pomoStart").textContent = "一時停止";
+  savePomoState("running");
+  pomoTimer = setInterval(() => {
+    pomoRemaining = Math.max(0, Math.ceil((pomoEndsAt - Date.now()) / 1000));
+    if (pomoRemaining === 0) {
+      clearInterval(pomoTimer);
+      pomoTimer = null;
+      pomoFinish();
+    }
+    renderPomo();
+  }, 250);
+}
+$("pomoStart").addEventListener("click", () => {
+  if (pomoTimer) { pomoStop(); return; }
+  startPomo();
+});
+$("pomoReset").addEventListener("click", () => setPomoMode(pomoMode));
+function restorePomo() {
+  let saved = store.get("pomoState", null);
+  // ロック画面の操作から開始したタイマーをWeb画面へ同期する。
+  if (window.Android?.getTimerState) {
+    try {
+      const nativeState = JSON.parse(Android.getTimerState());
+      importNativeCompletion(nativeState);
+      if (nativeState.active && nativeState.endsAt > Date.now() && Object.hasOwn(POMO_PRESETS, nativeState.mode)) {
+        saved = {
+          version: 1, mode: nativeState.mode, status: "running",
+          remaining: Math.ceil((nativeState.endsAt - Date.now()) / 1000),
+          endsAt: nativeState.endsAt, startedAt: new Date().toISOString()
+        };
+        store.set("pomoState", saved);
+      } else if (nativeState.status === "paused" && nativeState.remainingMs > 0 && Object.hasOwn(POMO_PRESETS, nativeState.mode)) {
+        saved = {
+          version: 1, mode: nativeState.mode, status: "paused",
+          remaining: Math.ceil(nativeState.remainingMs / 1000),
+          endsAt: null, startedAt: new Date().toISOString()
+        };
+        store.set("pomoState", saved);
+      }
+    } catch { /* ネイティブ状態を取得できない場合はWeb側の保存状態を使う */ }
+  }
+  if (!saved || !Object.hasOwn(POMO_PRESETS, saved.mode)) { renderPomo(); return; }
+  pomoMode = saved.mode;
+  pomoStartedAt = typeof saved.startedAt === "string" ? saved.startedAt : null;
+  document.querySelectorAll("#pomoMode button").forEach((b) => {
+    const active = b.dataset.mode === pomoMode;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-pressed", String(active));
+  });
+  if (saved.status === "running" && Number.isFinite(saved.endsAt)) {
+    pomoRemaining = Math.max(0, Math.ceil((saved.endsAt - Date.now()) / 1000));
+    if (pomoRemaining === 0) { pomoFinish(); return; }
+    startPomo();
+  } else {
+    const remaining = Number(saved.remaining);
+    pomoRemaining = Number.isFinite(remaining)
+      ? Math.max(0, Math.min(POMO_PRESETS[pomoMode], Math.round(remaining)))
+      : POMO_PRESETS[pomoMode];
+    $("pomoStart").textContent = pomoRemaining === POMO_PRESETS[pomoMode] ? "スタート" : "再開";
+    renderPomo();
+  }
+}
+restorePomo();
+renderFocusHistory();
+window.syncNativeTimer = () => {
+  if (!window.Android?.getTimerState) return;
+  try {
+    const nativeState = JSON.parse(Android.getTimerState());
+    importNativeCompletion(nativeState);
+    if (!Object.hasOwn(POMO_PRESETS, nativeState.mode)) return;
+    clearInterval(pomoTimer);
+    pomoTimer = null;
+    pomoMode = nativeState.mode;
+    pomoStartedAt = new Date().toISOString();
+    document.querySelectorAll("#pomoMode button").forEach((b) => {
+      const active = b.dataset.mode === pomoMode;
+      b.classList.toggle("active", active);
+      b.setAttribute("aria-pressed", String(active));
+    });
+    if (nativeState.active && nativeState.endsAt > Date.now()) {
+      pomoRemaining = Math.ceil((nativeState.endsAt - Date.now()) / 1000);
+      startPomo();
+    } else if (nativeState.status === "paused" && nativeState.remainingMs > 0) {
+      pomoRemaining = Math.ceil(nativeState.remainingMs / 1000);
+      pomoEndsAt = null;
+      store.set("pomoState", {
+        version: 1, mode: pomoMode, status: "paused", remaining: pomoRemaining,
+        endsAt: null, startedAt: pomoStartedAt
+      });
+      $("pomoStart").textContent = "再開";
+      renderPomo();
+    } else if (nativeState.status === "idle") {
+      pomoRemaining = POMO_PRESETS[pomoMode];
+      pomoEndsAt = null;
+      pomoStartedAt = null;
+      $("pomoStart").textContent = "スタート";
+      renderPomo();
+    }
+  } catch { /* ネイティブ状態を取得できない場合は現在表示を維持 */ }
+};
+
+/* ---------- habits ---------- */
+function normalizeHabits(value) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((h) => {
+    if (!h || typeof h.name !== "string" || !h.name.trim()) return [];
+    const log = {};
+    if (h.log && typeof h.log === "object" && !Array.isArray(h.log)) {
+      Object.entries(h.log).forEach(([key, done]) => {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(key) && done === true) log[key] = true;
+      });
+    }
+    return [{ id: typeof h.id === "string" ? h.id : makeId(), name: h.name.slice(0, 50), log }];
+  });
+}
+let habits = normalizeHabits(store.get("habits", [])); // [{id, name, log: {"YYYY-MM-DD": true}}]
+function weekDates() {
+  // 月曜はじまりの今週7日分
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function saveHabits() { store.set("habits", habits); renderHabits(); }
+function habitStreak(h) {
+  // 今日(未記録なら昨日)から遡って連続達成日数を数える
+  const d = new Date();
+  if (!h.log[dateKey(d)]) d.setDate(d.getDate() - 1);
+  let streak = 0;
+  while (h.log[dateKey(d)]) {
+    streak += 1;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+function renderHabits() {
+  const dates = weekDates();
+  const today = todayKey();
+  const head = $("habitHead");
+  head.innerHTML = "<th>習慣</th>";
+  dates.forEach(d => {
+    const th = document.createElement("th");
+    th.textContent = WEEKDAYS[d.getDay()];
+    if (dateKey(d) === today) th.className = "today";
+    head.appendChild(th);
+  });
+  head.insertAdjacentHTML("beforeend", "<th></th>");
+
+  const body = $("habitBody");
+  body.innerHTML = "";
+  habits.forEach((h, i) => {
+    const tr = document.createElement("tr");
+    tr.className = "habit-row";
+    const nameTd = document.createElement("td");
+    nameTd.className = "habit-name";
+    nameTd.textContent = h.name;
+    nameTd.title = h.name;
+    const streak = habitStreak(h);
+    if (streak >= 2) {
+      const s = document.createElement("span");
+      s.className = "streak";
+      s.textContent = ` 🔥${streak}`;
+      s.title = `${streak}日連続`;
+      nameTd.appendChild(s);
+    }
+    tr.appendChild(nameTd);
+    dates.forEach(d => {
+      const key = dateKey(d);
+      const td = document.createElement("td");
+      td.className = "habit-cell";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "habit-dot" + (h.log[key] ? " on" : "");
+      btn.disabled = key > today; // 未来の日付は押せない
+      btn.title = key;
+      btn.setAttribute("aria-label", `${h.name} ${key}`);
+      btn.setAttribute("aria-pressed", String(Boolean(h.log[key])));
+      btn.addEventListener("click", () => {
+        if (h.log[key]) delete h.log[key]; else h.log[key] = true;
+        saveHabits();
+      });
+      td.appendChild(btn);
+      tr.appendChild(td);
+    });
+    const delTd = document.createElement("td");
+    const del = document.createElement("button");
+    del.className = "del-btn";
+    del.textContent = "✕";
+    del.title = "習慣を削除";
+    del.setAttribute("aria-label", `「${h.name}」を削除`);
+    del.addEventListener("click", () => {
+      if (confirm(`「${h.name}」を削除しますか?記録も消えます。`)) {
+        habits.splice(i, 1);
+        saveHabits();
+      }
+    });
+    delTd.appendChild(del);
+    tr.appendChild(delTd);
+    body.appendChild(tr);
+  });
+  $("habitEmpty").hidden = habits.length > 0;
+}
+$("habitForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = $("habitInput").value.trim();
+  if (!name) return;
+  habits.push({ id: makeId(), name, log: {} });
+  $("habitInput").value = "";
+  saveHabits();
+});
+renderHabits();
+
+/* ---------- memo ---------- */
+const memoArea = $("memoArea");
+const initialMemo = store.get("memo", "");
+memoArea.value = typeof initialMemo === "string" ? initialMemo : "";
+let memoTimer = null;
+function saveMemo() {
+  clearTimeout(memoTimer);
+  memoTimer = null;
+  if (!store.set("memo", memoArea.value)) return;
+  const now = new Date();
+  $("memoSaved").textContent =
+    `保存済み ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+}
+memoArea.addEventListener("input", () => {
+  clearTimeout(memoTimer);
+  memoTimer = setTimeout(saveMemo, 400);
+});
+window.addEventListener("pagehide", saveMemo);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") saveMemo();
+});
+
+/* ---------- Capture Inbox ---------- */
+$("captureBtn").addEventListener("click", async () => {
+  saveMemo();
+  const text = memoArea.value.trim();
+  if (!text) { alert("送るメモを入力してください。"); return; }
+  const filename = `capture-${todayKey()}-${new Date().toTimeString().slice(0, 8).replaceAll(":", "")}.md`;
+  const content = `---\ndate: ${new Date().toISOString()}\nsource: daily-dashboard\n---\n\n${text}\n`;
+  if (window.Android?.shareMarkdown) {
+    Android.shareMarkdown(filename, content);
+    $("memoSaved").textContent = "共有画面を開きました";
+    return;
+  }
+  const file = new File([content], filename, { type: "text/markdown" });
+  try {
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ title: "Capture Inbox", text: "クイックメモ", files: [file] });
+      $("memoSaved").textContent = "共有しました";
+      return;
+    }
+  } catch (error) {
+    if (error.name === "AbortError") return;
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $("memoSaved").textContent = "Capture Inbox用ファイルを保存しました";
+});
+
+/* ---------- backup: export / import ---------- */
+const DATA_KEYS = ["todos", "habits", "memo", "pomoStats", "theme", "pomoState", "pomoSessions"];
+$("exportBtn").addEventListener("click", () => {
+  saveMemo();
+  const data = { app: "daily-dashboard", version: 2, exportedAt: new Date().toISOString() };
+  DATA_KEYS.forEach((k) => { data[k] = store.get(k, null); });
+  const content = JSON.stringify(data, null, 2);
+  const filename = `daily-dashboard-backup-${todayKey()}.json`;
+  if (window.Android?.saveBackup) {
+    Android.saveBackup(filename, content);
+    return;
+  }
+  const blob = new Blob([content], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+function validateBackup(data) {
+  if (!data || data.app !== "daily-dashboard" || ![1, 2].includes(data.version)) throw new Error("形式が違います");
+  if (!Array.isArray(data.todos) || !Array.isArray(data.habits)) throw new Error("一覧データが壊れています");
+  if (data.memo != null && typeof data.memo !== "string") throw new Error("メモが壊れています");
+  if (data.theme != null && !["light", "dark"].includes(data.theme)) throw new Error("テーマが壊れています");
+  const stats = data.pomoStats && typeof data.pomoStats === "object" ? data.pomoStats : { date: todayKey(), done: 0 };
+  const normalized = {
+    todos: normalizeTodos(data.todos), habits: normalizeHabits(data.habits),
+    memo: data.memo || "", theme: data.theme || "light",
+    pomoStats: {
+      date: /^\d{4}-\d{2}-\d{2}$/.test(stats.date) ? stats.date : todayKey(),
+      done: Number.isInteger(stats.done) && stats.done >= 0 ? stats.done : 0
+    },
+    pomoState: null, pomoSessions: []
+  };
+  if (data.pomoState && typeof data.pomoState === "object" && Object.hasOwn(POMO_PRESETS, data.pomoState.mode)) {
+    normalized.pomoState = data.pomoState;
+  }
+  if (Array.isArray(data.pomoSessions)) {
+    normalized.pomoSessions = data.pomoSessions.filter((s) =>
+      s && typeof s.id === "string" && Object.hasOwn(POMO_PRESETS, s.mode) && typeof s.endedAt === "string").slice(-1000);
+  }
+  return normalized;
+}
+async function restoreBackup(rawData) {
+  try {
+    const data = validateBackup(rawData);
+    if (!confirm("バックアップから復元しますか?現在のデータは上書きされます。")) return;
+    const before = Object.fromEntries(DATA_KEYS.map((k) => [k, store.get(k, null)]));
+    try {
+      DATA_KEYS.forEach((k) => {
+        const ok = data[k] === null || data[k] === undefined ? store.remove(k) : store.set(k, data[k]);
+        if (!ok) throw new Error("保存できません");
+      });
+    } catch (error) {
+      DATA_KEYS.forEach((k) => before[k] === null ? store.remove(k) : store.set(k, before[k]));
+      throw error;
+    }
+    location.reload();
+  } catch {
+    alert("復元できませんでした。このアプリの「バックアップ」で保存したJSONファイルを選んでください。");
+  }
+}
+window.importBackupFromAndroid = (text) => {
+  try { restoreBackup(JSON.parse(text)); }
+  catch { alert("バックアップのJSONを読み取れませんでした。"); }
+};
+$("importBtn").addEventListener("click", () => {
+  if (window.Android?.openBackup) Android.openBackup();
+  else $("importFile").click();
+});
+$("importFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try { await restoreBackup(JSON.parse(await file.text())); }
+  catch { alert("バックアップのJSONを読み取れませんでした。"); }
+});
+
+/* ---------- PWA: Service Worker 登録 ---------- */
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {
+      /* 登録できない環境(非HTTPSなど)ではオフライン機能なしで動作 */
+    });
+  });
+}
+if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+
+// 同じアプリを複数タブで開いた場合にも最新データを表示する。
+window.addEventListener("storage", (event) => {
+  if (!event.key?.startsWith(STORAGE_PREFIX)) return;
+  if (event.key === STORAGE_PREFIX + "todos") { todos = normalizeTodos(store.get("todos", [])); renderTodos(); }
+  if (event.key === STORAGE_PREFIX + "habits") { habits = normalizeHabits(store.get("habits", [])); renderHabits(); }
+  if (event.key === STORAGE_PREFIX + "memo" && document.activeElement !== memoArea) {
+    const value = store.get("memo", ""); memoArea.value = typeof value === "string" ? value : "";
+  }
+});
+
+/* 日付が変わったら習慣グリッド・ポモ実績を更新 */
+let lastDay = todayKey();
+setInterval(() => {
+  if (todayKey() !== lastDay) {
+    lastDay = todayKey();
+    rolloverTodos();
+    renderTodos();
+    renderHabits();
+    renderPomo();
+  }
+}, 30 * 1000);
+</script>
+</body>
+</html>
