@@ -6,4 +6,18 @@
         <item name="android:navigationBarColor">#12141A</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+    <style name="Theme.DailyDashboard.QuickStart" parent="android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+    <style name="Theme.DailyDashboard.YouTubeGate" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#12141A</item>
+        <item name="android:navigationBarColor">#12141A</item>
+        <item name="android:colorAccent">#D84A3A</item>
+    </style>
 </resources>

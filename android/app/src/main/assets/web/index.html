@@ -171,10 +171,15 @@
   .focus-categories { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin:0 0 12px; }
   .focus-category { padding:9px 4px; border:1px solid var(--border); border-radius:9px; background:var(--bg); color:var(--text); cursor:pointer; font-size:.9rem; }
   .focus-category.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .other-focus-input { width:100%; margin:-4px 0 12px; padding:10px 12px; border:1px solid var(--border); border-radius:9px; background:var(--bg); color:var(--text); font-size:.9rem; }
   .focus-history { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); text-align: left; }
   .focus-history-title { color: var(--text-sub); font-size: .8rem; margin-bottom: 6px; }
   .focus-history-row { display:flex; justify-content:space-between; gap:10px; padding:5px 2px; font-size:.86rem; }
   .focus-history-row span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .focus-session-list { margin-top:10px; display:grid; gap:7px; }
+  .focus-session-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .focus-session-time { color:var(--text-sub); font-size:.78rem; white-space:nowrap; }
+  .focus-session-select { min-width:120px; max-width:190px; padding:7px 9px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-size:.82rem; }
 
   /* ---- habits ---- */
   .habit-form { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -277,6 +282,7 @@
         <button class="focus-category" data-focus="読書">読書</button>
         <button class="focus-category" data-focus="その他">その他</button>
       </div>
+      <input class="other-focus-input" id="pomoOtherDetail" maxlength="60" autocomplete="off" placeholder="何をする？（任意）" aria-label="その他の集中内容" hidden>
       <div class="pomo-ring">
         <svg width="200" height="200" viewBox="0 0 200 200">
           <circle class="track" cx="100" cy="100" r="90" fill="none" stroke-width="8"/>
@@ -482,10 +488,16 @@ let pomoEndsAt = null;
 let pomoStartedAt = null;
 const FOCUS_CATEGORIES = ["英語", "数学", "読書", "その他"];
 let pomoFocus = FOCUS_CATEGORIES.includes(store.get("pomoFocus", "")) ? store.get("pomoFocus", "") : "英語";
+let pomoOtherDetail = String(store.get("pomoOtherDetail", "") || "").slice(0, 60);
+$("pomoOtherDetail").value = pomoOtherDetail;
 
 function currentFocus() {
   store.set("pomoFocus", pomoFocus);
-  return pomoFocus;
+  pomoOtherDetail = $("pomoOtherDetail").value.trim().slice(0, 60);
+  store.set("pomoOtherDetail", pomoOtherDetail);
+  const focus = pomoFocus === "その他" && pomoOtherDetail ? `その他：${pomoOtherDetail}` : pomoFocus;
+  if (window.Android?.setPreferredFocus) Android.setPreferredFocus(focus);
+  return focus;
 }
 function renderFocusCategories() {
   document.querySelectorAll(".focus-category").forEach((button) => {
@@ -493,6 +505,8 @@ function renderFocusCategories() {
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
   });
+  $("pomoOtherDetail").hidden = pomoFocus !== "その他";
+  $("pomoOtherDetail").disabled = Boolean(pomoTimer);
 }
 $("focusCategories").addEventListener("click", (event) => {
   const button = event.target.closest("button[data-focus]");
@@ -500,6 +514,7 @@ $("focusCategories").addEventListener("click", (event) => {
   pomoFocus = button.dataset.focus;
   currentFocus(); renderFocusCategories();
 });
+$("pomoOtherDetail").addEventListener("change", currentFocus);
 function localDateKey(value) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "";
@@ -533,8 +548,54 @@ function renderFocusHistory() {
     const value = document.createElement("strong"); value.textContent = `${todayCount} / ${weekCount} ポモ`;
     row.append(label, value); history.appendChild(row);
   });
+  const todaySessions = safe
+    .map((session, index) => ({ session, index }))
+    .filter(({ session }) => session.mode === "work" && session.result === "completed" && localDateKey(session.endedAt) === todayKey())
+    .sort((a, b) => Date.parse(b.session.endedAt) - Date.parse(a.session.endedAt))
+    .slice(0, 12);
+  if (todaySessions.length) {
+    const title = document.createElement("div");
+    title.className = "focus-history-title";
+    title.style.marginTop = "10px";
+    title.textContent = "今日の記録（タップで変更）";
+    history.appendChild(title);
+    const list = document.createElement("div");
+    list.className = "focus-session-list";
+    todaySessions.forEach(({ session, index }) => {
+      const row = document.createElement("div"); row.className = "focus-session-row";
+      const time = document.createElement("span"); time.className = "focus-session-time";
+      const endedAt = new Date(session.endedAt);
+      time.textContent = Number.isFinite(endedAt.getTime())
+        ? `${String(endedAt.getHours()).padStart(2, "0")}:${String(endedAt.getMinutes()).padStart(2, "0")}`
+        : "完了";
+      const select = document.createElement("select"); select.className = "focus-session-select";
+      select.setAttribute("aria-label", `${time.textContent}のカテゴリ`);
+      const raw = String(session.focus || "").trim();
+      const selectedCategory = FOCUS_CATEGORIES.includes(raw) ? raw : (raw.startsWith("その他") ? "その他" : "英語");
+      FOCUS_CATEGORIES.forEach((name) => {
+        const option = document.createElement("option"); option.value = name; option.textContent = name;
+        option.selected = name === selectedCategory; select.appendChild(option);
+      });
+      select.addEventListener("change", () => {
+        let nextFocus = select.value;
+        if (nextFocus === "その他") {
+          const currentDetail = raw.startsWith("その他：") ? raw.slice(4) : "";
+          const detail = window.prompt("何をしていた？（任意）", currentDetail);
+          if (detail === null) { renderFocusHistory(); return; }
+          const trimmed = detail.trim().slice(0, 60);
+          nextFocus = trimmed ? `その他：${trimmed}` : "その他";
+        }
+        safe[index].focus = nextFocus;
+        store.set("pomoSessions", safe);
+        renderFocusHistory();
+      });
+      row.append(time, select); list.appendChild(row);
+    });
+    history.appendChild(list);
+  }
 }
 renderFocusCategories();
+currentFocus();
 
 window.clearMathPomodoros = () => {
   const sessions = store.get("pomoSessions", []);
@@ -602,6 +663,7 @@ function renderPomo() {
   const ratio = pomoRemaining / POMO_PRESETS[pomoMode];
   $("pomoBar").style.strokeDashoffset = CIRCUMFERENCE * (1 - ratio);
   $("pomoDone").textContent = pomoStats().done;
+  renderFocusCategories();
   document.title = pomoTimer ? `${text} ${POMO_LABELS[pomoMode]} | デイリーダッシュボード` : "デイリーダッシュボード";
 }
 function pomoBeep() {

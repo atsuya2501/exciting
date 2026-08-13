@@ -59,11 +59,7 @@ object TimerScheduler {
             .remove(KEY_REMAINING)
             .apply()
 
-        context.getSystemService(AlarmManager::class.java).setAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            endsAt,
-            alarmPendingIntent(context)
-        )
+        setReliableAlarm(context, endsAt, alarmPendingIntent(context))
         showRunningNotification(context, endsAt, sanitizeMode(mode), focus)
     }
 
@@ -83,6 +79,22 @@ object TimerScheduler {
         val focus = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_FOCUS, "") ?: ""
         schedule(context, System.currentTimeMillis() + seconds * 1000L, safeMode, next, message, focus)
+    }
+
+    fun setPreferredFocus(context: Context, focus: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString(KEY_FOCUS, focus.trim().take(100)).apply()
+    }
+
+    fun preferredFocus(context: Context): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_FOCUS, "英語")?.ifBlank { "英語" } ?: "英語"
+
+    fun status(context: Context): String {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val active = prefs.getBoolean(KEY_ACTIVE, false) &&
+            prefs.getLong(KEY_ENDS_AT, 0L) > System.currentTimeMillis()
+        return if (active) "running" else prefs.getString(KEY_STATUS, "idle") ?: "idle"
     }
 
     fun cancel(context: Context) {
@@ -276,8 +288,8 @@ object TimerScheduler {
     }
 
     fun scheduleAlertAutoStop(context: Context) {
-        context.getSystemService(AlarmManager::class.java).setAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
+        setReliableAlarm(
+            context,
             System.currentTimeMillis() + ALERT_MAX_DURATION_MS,
             stopAlertPendingIntent(context)
         )
@@ -320,6 +332,19 @@ object TimerScheduler {
             Intent(context, TimerReceiver::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    private fun setReliableAlarm(context: Context, triggerAt: Long, operation: PendingIntent) {
+        val manager = context.getSystemService(AlarmManager::class.java)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || manager.canScheduleExactAlarms()) {
+            runCatching {
+                manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, operation)
+            }.onFailure {
+                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, operation)
+            }
+        } else {
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, operation)
+        }
     }
 
     private fun sanitizeMode(mode: String): String =

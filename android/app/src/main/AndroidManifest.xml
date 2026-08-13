@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
         android:allowBackup="true"
@@ -23,6 +24,26 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".QuickStartActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="25分集中"
+            android:noHistory="true"
+            android:theme="@style/Theme.DailyDashboard.QuickStart">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".YouTubeGateActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@style/Theme.DailyDashboard.YouTubeGate" />
+
         <receiver
             android:name=".TimerReceiver"
             android:exported="false" />
@@ -34,6 +55,36 @@
         <receiver
             android:name=".StopAlertReceiver"
             android:exported="false" />
+
+        <service
+            android:name=".QuickStartTileService"
+            android:icon="@drawable/ic_timer"
+            android:label="Pomodoro"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
+        </service>
+
+        <service
+            android:name=".YouTubeGateAccessibilityService"
+            android:exported="true"
+            android:label="YouTubeを開く前に確認"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/youtube_gate_accessibility" />
+        </service>
 
         <receiver
             android:name=".BootReceiver"

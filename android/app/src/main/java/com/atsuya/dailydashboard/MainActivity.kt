@@ -3,6 +3,7 @@ package com.atsuya.dailydashboard
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.AlarmManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -48,6 +49,7 @@ class MainActivity : Activity() {
         }
         setContentView(webView)
         requestNotificationPermission()
+        requestExactAlarmPermission()
         scheduleDebugTimerIfRequested(intent)
     }
 
@@ -88,6 +90,21 @@ class MainActivity : Activity() {
                 arrayOf(Manifest.permission.POST_NOTIFICATIONS),
                 NOTIFICATION_PERMISSION_REQUEST
             )
+        }
+    }
+
+    private fun requestExactAlarmPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        val alarmManager = getSystemService(AlarmManager::class.java)
+        if (alarmManager.canScheduleExactAlarms()) return
+        runCatching {
+            startActivity(
+                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+            )
+        }.onFailure {
+            Toast.makeText(this, "正確なタイマーの許可を有効にしてください", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -167,6 +184,11 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun getTimerState(): String = TimerScheduler.currentStateJson(this@MainActivity)
+
+        @JavascriptInterface
+        fun setPreferredFocus(focus: String) {
+            TimerScheduler.setPreferredFocus(this@MainActivity, focus)
+        }
 
         @JavascriptInterface
         fun shareMarkdown(filename: String, content: String) {
