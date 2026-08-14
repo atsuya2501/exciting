@@ -14,16 +14,13 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 
+/** クラス名は既存のManifestとユーザー補助許可を引き継ぐため維持している。 */
 class YouTubeGateActivity : Activity() {
-    private lateinit var target: String
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        target = intent.getStringExtra(EXTRA_TARGET) ?: YouTubeGateAccessibilityService.TARGET_YOUTUBE
-        if (TimerScheduler.status(this) == "running" || isTemporarilyAllowed(this, target)) {
-            openTarget()
+        if (isTemporarilyAllowed(this)) {
+            finish()
             return
         }
 
@@ -36,14 +33,14 @@ class YouTubeGateActivity : Activity() {
             setBackgroundColor(Color.rgb(18, 20, 26))
         }
         root.addView(TextView(this).apply {
-            text = if (target == YouTubeGateAccessibilityService.TARGET_INSTAGRAM) "Instagramで何を見る？" else "YouTubeを開きますか？"
+            text = "Instagramで検索"
             textSize = 25f
             setTextColor(Color.WHITE)
             setTypeface(typeface, Typeface.BOLD)
             gravity = Gravity.CENTER
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        })
         root.addView(TextView(this).apply {
-            text = if (target == YouTubeGateAccessibilityService.TARGET_INSTAGRAM) "目的を検索してから開きます" else "いまはポモドーロが動いていません"
+            text = "検索ワードを入力して開きます"
             textSize = 15f
             setTextColor(Color.rgb(185, 190, 200))
             gravity = Gravity.CENTER
@@ -51,47 +48,34 @@ class YouTubeGateActivity : Activity() {
             topMargin = dp(10); bottomMargin = dp(30)
         })
 
-        if (target == YouTubeGateAccessibilityService.TARGET_INSTAGRAM) {
-            val reason = EditText(this).apply {
-                hint = "例：英語の発音、店名、人物名"
-                textSize = 17f
-                setTextColor(Color.WHITE)
-                setHintTextColor(Color.rgb(135, 140, 150))
-                setSingleLine(true)
-                inputType = InputType.TYPE_CLASS_TEXT
-                setPadding(dp(14), 0, dp(14), 0)
-                setBackgroundColor(Color.rgb(40, 43, 51))
-            }
-            root.addView(reason, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)).apply {
-                bottomMargin = dp(12)
-            })
-            root.addView(actionButton("検索して開く", Color.rgb(216, 74, 58)) {
-                val query = reason.text.toString().trim()
-                if (query.isBlank()) {
-                    reason.error = "見る目的を入力してください"
-                    reason.requestFocus()
-                } else {
-                    allowTemporarily(this, target, 2 * 60 * 1000L)
-                    openInstagramSearch(query)
-                }
-            })
-        } else {
-            root.addView(actionButton("25分集中を始める", Color.rgb(216, 74, 58)) {
-                TimerScheduler.schedulePreset(this, "work")
-                Toast.makeText(this, "${TimerScheduler.preferredFocus(this)}・25分を開始しました", Toast.LENGTH_SHORT).show()
-                openTarget()
-            })
-            root.addView(actionButton("今回はそのまま開く", Color.rgb(55, 59, 69)) {
-                allowTemporarily(this, target, ALLOW_MILLIS)
-                openTarget()
-            }.apply {
-                (layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(12)
-            })
+        val queryInput = EditText(this).apply {
+            hint = "検索ワード"
+            textSize = 17f
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.rgb(135, 140, 150))
+            setSingleLine(true)
+            inputType = InputType.TYPE_CLASS_TEXT
+            setPadding(dp(14), 0, dp(14), 0)
+            setBackgroundColor(Color.rgb(40, 43, 51))
         }
-        root.addView(actionButton("やめる", Color.TRANSPARENT) { finish() }.apply {
+        root.addView(queryInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)).apply {
+            bottomMargin = dp(12)
+        })
+        root.addView(actionButton("検索して開く", Color.rgb(216, 74, 58)) {
+            val query = queryInput.text.toString().trim()
+            if (query.isBlank()) {
+                queryInput.error = "検索ワードを入力してください"
+                queryInput.requestFocus()
+            } else {
+                allowForLaunch(this)
+                openInstagramSearch(query)
+            }
+        })
+        root.addView(actionButton("やめる", Color.TRANSPARENT) { goHome() }.apply {
             (layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(12)
         })
         setContentView(root)
+        queryInput.requestFocus()
     }
 
     private fun actionButton(label: String, color: Int, action: () -> Unit) = Button(this).apply {
@@ -101,24 +85,14 @@ class YouTubeGateActivity : Activity() {
         setTextColor(Color.WHITE)
         setBackgroundColor(color)
         setOnClickListener { action() }
-        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, resources.displayMetrics.density.times(56).toInt())
-    }
-
-    private fun openTarget() {
-        val packageName = if (target == YouTubeGateAccessibilityService.TARGET_INSTAGRAM) {
-            YouTubeGateAccessibilityService.INSTAGRAM_PACKAGE
-        } else {
-            YouTubeGateAccessibilityService.YOUTUBE_PACKAGE
-        }
-        packageManager.getLaunchIntentForPackage(packageName)?.let {
-            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-            startActivity(it)
-        }
-        finish()
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            resources.displayMetrics.density.times(56).toInt()
+        )
     }
 
     private fun openInstagramSearch(query: String) {
-        val searchIntent = Intent(
+        val intent = Intent(
             Intent.ACTION_VIEW,
             Uri.parse("https://www.instagram.com/explore/search/keyword/?q=${Uri.encode(query)}")
         ).apply {
@@ -126,26 +100,32 @@ class YouTubeGateActivity : Activity() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         try {
-            startActivity(searchIntent)
+            startActivity(intent)
         } catch (_: Exception) {
-            openTarget()
-            return
+            packageManager.getLaunchIntentForPackage(YouTubeGateAccessibilityService.INSTAGRAM_PACKAGE)?.let {
+                startActivity(it)
+            }
         }
         finish()
     }
 
+    private fun goHome() {
+        startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME))
+        finish()
+    }
+
     companion object {
-        private const val PREFS = "youtube_gate"
-        private const val ALLOW_MILLIS = 10 * 60 * 1000L
-        const val EXTRA_TARGET = "target"
+        private const val PREFS = "instagram_search_gate"
+        private const val KEY_ALLOWED_UNTIL = "allowed_until"
+        private const val LAUNCH_GRACE_MILLIS = 10_000L
 
-        fun isTemporarilyAllowed(context: Context, target: String): Boolean =
+        fun isTemporarilyAllowed(context: Context): Boolean =
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getLong("allowed_until_$target", 0L) > System.currentTimeMillis()
+                .getLong(KEY_ALLOWED_UNTIL, 0L) > System.currentTimeMillis()
 
-        private fun allowTemporarily(context: Context, target: String, durationMillis: Long) {
+        private fun allowForLaunch(context: Context) {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                .putLong("allowed_until_$target", System.currentTimeMillis() + durationMillis)
+                .putLong(KEY_ALLOWED_UNTIL, System.currentTimeMillis() + LAUNCH_GRACE_MILLIS)
                 .apply()
         }
     }

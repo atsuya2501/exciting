@@ -4,20 +4,20 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 
+/** クラス名は既存のユーザー補助許可を引き継ぐため維持している。 */
 class YouTubeGateAccessibilityService : AccessibilityService() {
+    private var lastForegroundPackage = ""
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
-        val target = when (event.packageName?.toString()) {
-            YOUTUBE_PACKAGE -> TARGET_YOUTUBE
-            INSTAGRAM_PACKAGE -> TARGET_INSTAGRAM
-            else -> return
-        }
-        if (TimerScheduler.status(this) == "running") return
-        if (YouTubeGateActivity.isTemporarilyAllowed(this, target)) return
+        val packageName = event.packageName?.toString().orEmpty()
+        val enteredInstagram = packageName == INSTAGRAM_PACKAGE &&
+            lastForegroundPackage != INSTAGRAM_PACKAGE
+        lastForegroundPackage = packageName
 
+        if (!enteredInstagram || YouTubeGateActivity.isTemporarilyAllowed(this)) return
         startActivity(
             Intent(this, YouTubeGateActivity::class.java)
-                .putExtra(YouTubeGateActivity.EXTRA_TARGET, target)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         )
     }
@@ -25,9 +25,6 @@ class YouTubeGateAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     companion object {
-        const val YOUTUBE_PACKAGE = "com.google.android.youtube"
         const val INSTAGRAM_PACKAGE = "com.instagram.android"
-        const val TARGET_YOUTUBE = "youtube"
-        const val TARGET_INSTAGRAM = "instagram"
     }
 }

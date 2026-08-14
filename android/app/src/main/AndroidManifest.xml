@@ -76,7 +76,7 @@
         <service
             android:name=".YouTubeGateAccessibilityService"
             android:exported="true"
-            android:label="SNSを開く前に確認"
+            android:label="Instagramを検索して開く"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
