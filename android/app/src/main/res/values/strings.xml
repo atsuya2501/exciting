@@ -1,5 +1,5 @@
 <resources>
-    <string name="youtube_gate_accessibility_description">Instagramを開いたときに検索ワードを確認し、その検索結果を開きます。画面内容の読み取りや保存は行いません。</string>
+    <string name="youtube_gate_accessibility_description">ポモドーロ外でYouTubeを開いたとき、開始するか確認します。画面内容の読み取りや保存は行いません。</string>
     <string name="app_name">デイリーダッシュボード</string>
     <string name="notification_channel_name">ポモドーロ</string>
     <string name="notification_channel_description">ポモドーロの終了を通知します</string>
