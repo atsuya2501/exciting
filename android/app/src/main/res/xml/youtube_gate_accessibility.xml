@@ -5,4 +5,4 @@
     android:canRetrieveWindowContent="false"
     android:description="@string/youtube_gate_accessibility_description"
     android:notificationTimeout="100"
-    android:packageNames="com.google.android.youtube" />
+    android:packageNames="com.google.android.youtube,com.instagram.android" />
